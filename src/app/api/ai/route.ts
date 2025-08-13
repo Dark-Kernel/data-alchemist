@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
 
       case "generate_rule": {
         const { text: inputText } = payload;
-        const prompt = `Parse the following text and convert it into a JSON rule. Supported rule types are "coRun", "slotRestriction", and "loadLimit". Text: "${inputText}". Return a single valid JSON object.`;
+        const prompt = `Parse the following text and convert it into a JSON rule. Supported rule types are "coRun", "slotRestriction", "loadLimit", and "phase-window". Text: "${inputText}". Return a single valid JSON object in the format { "type": "...", "tasks": [...], ... }. For "phase-window" rules, if only one task is mentioned, return it in the "tasks" array. For example, "Task T001 must run in phases 1 or 2" should return { "type": "phase-window", "tasks": ["T001"], "phases": [1, 2] }.`;
         const result = await model.generateContent(prompt);
         const response = await result.response;
         const responseText = cleanJson(response.text());

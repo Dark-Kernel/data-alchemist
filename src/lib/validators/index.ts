@@ -170,6 +170,22 @@ function isCyclic(
   return false;
 }
 
+export const validateQualificationLevel = (
+  data: Record<string, any>[],
+  column: string,
+  min: number,
+  max: number
+) => {
+  const errors: string[] = [];
+  for (const row of data) {
+    const value = row[column];
+    if (value < min || value > max) {
+      errors.push(`Value out of range for ${column}: ${value}`);
+    }
+  }
+  return errors;
+};
+
 export const validatePhaseSlotSaturation = (
   tasks: Record<string, any>[],
   workers: Record<string, any>[]
@@ -177,18 +193,31 @@ export const validatePhaseSlotSaturation = (
   const errors: string[] = [];
   const phaseSlots: Record<number, number> = {};
   for (const worker of workers) {
-    if (Array.isArray(worker.AvailableSlots)) {
-      for (const slot of worker.AvailableSlots) {
-        phaseSlots[slot] = (phaseSlots[slot] || 0) + 1;
+    if (typeof worker.AvailableSlots === "string") {
+      try {
+        const slots = JSON.parse(worker.AvailableSlots);
+        if (Array.isArray(slots)) {
+          for (const slot of slots) {
+            phaseSlots[slot] = (phaseSlots[slot] || 0) + 1;
+          }
+        }
+      } catch {
+        // Ignore malformed lists, as they are handled by a different validator
       }
     }
   }
   const phaseDurations: Record<number, number> = {};
   for (const task of tasks) {
     if (typeof task.PreferredPhases === "string") {
-      const phases = task.PreferredPhases.split(",").map((p: string) => parseInt(p.trim()));
-      for (const phase of phases) {
-        phaseDurations[phase] = (phaseDurations[phase] || 0) + task.Duration;
+      try {
+        const phases = JSON.parse(task.PreferredPhases);
+        if (Array.isArray(phases)) {
+          for (const phase of phases) {
+            phaseDurations[phase] = (phaseDurations[phase] || 0) + task.Duration;
+          }
+        }
+      } catch {
+        // Ignore malformed lists, as they are handled by a different validator
       }
     }
   }
@@ -247,7 +276,7 @@ export const validateConflictingRules = (
 
   // Check for conflicts between co-run rules and phase-window rules
   for (const rule of rules) {
-    if (rule.type === "co-run" && rule.tasks) {
+    if (rule.type === "co-run" || rule.type === "coRun" && rule.tasks) {
       const coRunTasks = rule.tasks;
       let intersection: number[] | null = null;
 

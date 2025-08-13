@@ -1,0 +1,5 @@
+ClientID,ClientName,PriorityLevel,RequestedTaskIDs,GroupTag,AttributesJSON
+C001,Global Tech,1,T001,A,"{""region"": ""NA""}"
+C002,Innovate Inc,6,T002,B,"{""contact"": ""jane.doe@example.com""}"
+C003,Quantum Solutions,3,T999,A,"{""project"": ""QuantumLeap"""
+C001,Global Tech Duplicate,5,T003,C,"{""status"": ""active""}"

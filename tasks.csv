@@ -1,0 +1,5 @@
+TaskID,TaskName,Category,Duration,RequiredSkills,PreferredPhases,MaxConcurrent
+T001,Pipe Fitting,Plumbing,1,Plumbing,"[1,2]",1
+T002,Circuit Installation,Electrical,2,QuantumPhysics,"[2,3]",1
+T003,Frame Assembly,Welding,1,Welding,"[3,4]",3
+T001,Duplicate Task,Welding,1,Welding,"[4,5]",1

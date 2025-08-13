@@ -1,13 +1,14 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileUploader } from "@/components/custom/file-uploader";
 import { useEffect, useState } from "react";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
 import { DataGrid } from "@/components/custom/data-grid";
+import { textEditor } from "react-data-grid";
 import {
   validateMissingColumns,
   validateDuplicateIds,
@@ -21,6 +22,7 @@ import {
   validatePhaseSlotSaturation,
   validateMaxConcurrencyFeasibility,
   validateConflictingRules,
+  validateQualificationLevel,
 } from "@/lib/validators";
 import { SearchBar } from "@/components/custom/search-bar";
 import { RuleEditor } from "@/components/custom/rule-editor";
@@ -30,32 +32,32 @@ import { saveAs } from "file-saver";
 import { Client, Worker, Task, Rule, Weight, AiError } from "@/lib/types";
 
 const columnsClients = [
-  { key: "ClientID", name: "Client ID", editor: true },
-  { key: "ClientName", name: "Client Name", editor: true },
-  { key: "PriorityLevel", name: "Priority Level", editor: true },
-  { key: "RequestedTaskIDs", name: "Requested Task IDs", editor: true },
-  { key: "GroupTag", name: "Group Tag", editor: true },
-  { key: "AttributesJSON", name: "Attributes JSON", editor: true },
+  { key: "ClientID", name: "Client ID", renderEditCell: textEditor },
+  { key: "ClientName", name: "Client Name", renderEditCell: textEditor },
+  { key: "PriorityLevel", name: "Priority Level", renderEditCell: textEditor },
+  { key: "RequestedTaskIDs", name: "Requested Task IDs", renderEditCell: textEditor },
+  { key: "GroupTag", name: "Group Tag", renderEditCell: textEditor },
+  { key: "AttributesJSON", name: "Attributes JSON", renderEditCell: textEditor },
 ];
 
 const columnsWorkers = [
-  { key: "WorkerID", name: "Worker ID", editor: true },
-  { key: "WorkerName", name: "Worker Name", editor: true },
-  { key: "Skills", name: "Skills", editor: true },
-  { key: "AvailableSlots", name: "Available Slots", editor: true },
-  { key: "MaxLoadPerPhase", name: "Max Load Per Phase", editor: true },
-  { key: "WorkerGroup", name: "Worker Group", editor: true },
-  { key: "QualificationLevel", name: "Qualification Level", editor: true },
+  { key: "WorkerID", name: "Worker ID", renderEditCell: textEditor },
+  { key: "WorkerName", name: "Worker Name", renderEditCell: textEditor },
+  { key: "Skills", name: "Skills", renderEditCell: textEditor },
+  { key: "AvailableSlots", name: "Available Slots", renderEditCell: textEditor },
+  { key: "MaxLoadPerPhase", name: "Max Load Per Phase", renderEditCell: textEditor },
+  { key: "WorkerGroup", name: "Worker Group", renderEditCell: textEditor },
+  { key: "QualificationLevel", name: "Qualification Level", renderEditCell: textEditor },
 ];
 
 const columnsTasks = [
-  { key: "TaskID", name: "Task ID", editor: true },
-  { key: "TaskName", name: "Task Name", editor: true },
-  { key: "Category", name: "Category", editor: true },
-  { key: "Duration", name: "Duration", editor: true },
-  { key: "RequiredSkills", name: "Required Skills", editor: true },
-  { key: "PreferredPhases", name: "Preferred Phases", editor: true },
-  { key: "MaxConcurrent", name: "Max Concurrent", editor: true },
+  { key: "TaskID", name: "Task ID", renderEditCell: textEditor },
+  { key: "TaskName", name: "Task Name", renderEditCell: textEditor },
+  { key: "Category", name: "Category", renderEditCell: textEditor },
+  { key: "Duration", name: "Duration", renderEditCell: textEditor },
+  { key: "RequiredSkills", name: "Required Skills", renderEditCell: textEditor },
+  { key: "PreferredPhases", name: "Preferred Phases", renderEditCell: textEditor },
+  { key: "MaxConcurrent", name: "Max Concurrent", renderEditCell: textEditor },
 ];
 
 export default function Home() {
@@ -139,6 +141,10 @@ export default function Home() {
     setRules([...rules, rule]);
   };
 
+  const handleRuleRemove = (index: number) => {
+    setRules(rules.filter((_, i) => i !== index));
+  };
+
   const handleWeightsChange = (newWeights: Weight) => {
     setWeights(newWeights);
   };
@@ -204,7 +210,60 @@ export default function Home() {
   ) => {
     const cells: { row: number; col: string }[] = [];
     errors.forEach(error => {
-      // Implement parsing logic here to extract row index and column key
+      let match;
+      if ((match = error.match(/Duplicate ID found: (\w+)/))) {
+        const id = match[1];
+        const clientIndex = clients.findIndex(c => c.ClientID === id);
+        if (clientIndex !== -1) {
+          cells.push({ row: clientIndex, col: "ClientID" });
+        }
+        const workerIndex = workers.findIndex(w => w.WorkerID === id);
+        if (workerIndex !== -1) {
+          cells.push({ row: workerIndex, col: "WorkerID" });
+        }
+        const taskIndex = tasks.findIndex(t => t.TaskID === id);
+        if (taskIndex !== -1) {
+          cells.push({ row: taskIndex, col: "TaskID" });
+        }
+      } else if ((match = error.match(/Value out of range for (\w+): (\d+)/))) {
+        const column = match[1];
+        const value = match[2];
+        const clientIndex = clients.findIndex(c => c.PriorityLevel === parseInt(value));
+        if (clientIndex !== -1) {
+          cells.push({ row: clientIndex, col: column });
+        }
+      } else if ((match = error.match(/Broken JSON in (\w+): (.*)/))) {
+        const column = match[1];
+        const value = match[2];
+        const clientIndex = clients.findIndex(c => c.AttributesJSON === value);
+        if (clientIndex !== -1) {
+          cells.push({ row: clientIndex, col: column });
+        }
+      } else if ((match = error.match(/Client (\w+) requests unknown task: (\w+)/))) {
+        const id = match[1];
+        const rowIndex = clients.findIndex(c => c.ClientID === id);
+        if (rowIndex !== -1) {
+          cells.push({ row: rowIndex, col: "RequestedTaskIDs" });
+        }
+      } else if ((match = error.match(/Task (\w+) requires unknown skill: (\w+)/))) {
+        const id = match[1];
+        const rowIndex = tasks.findIndex(t => t.TaskID === id);
+        if (rowIndex !== -1) {
+          cells.push({ row: rowIndex, col: "RequiredSkills" });
+        }
+      } else if ((match = error.match(/Worker (\w+) is overloaded/))) {
+        const id = match[1];
+        const rowIndex = workers.findIndex(w => w.WorkerID === id);
+        if (rowIndex !== -1) {
+          cells.push({ row: rowIndex, col: "MaxLoadPerPhase" });
+        }
+      } else if ((match = error.match(/Task (\w+) has a max concurrency of (\d+), but only (\d+) qualified workers are available/))) {
+        const id = match[1];
+        const rowIndex = tasks.findIndex(t => t.TaskID === id);
+        if (rowIndex !== -1) {
+          cells.push({ row: rowIndex, col: "MaxConcurrent" });
+        }
+      }
     });
     return cells;
   };
@@ -224,6 +283,8 @@ export default function Home() {
       allErrors.push(...validateMissingColumns(workers, columnsWorkers.map(c => c.key)));
       allErrors.push(...validateDuplicateIds(workers, "WorkerID"));
       allErrors.push(...validateMalformedLists(workers, "AvailableSlots"));
+      allErrors.push(...validateOutOfRange(workers, "MaxLoadPerPhase", 0, Infinity));
+      allErrors.push(...validateQualificationLevel(workers, "QualificationLevel", 1, 5));
       allErrors.push(...validateOverloadedWorkers(workers));
     }
     if (Array.isArray(tasks) && tasks.length > 0) {
@@ -264,7 +325,7 @@ export default function Home() {
                 <FileUploader onFileUpload={(file) => handleFileUpload(file, "clients")} />
                 <SearchBar onSearch={(query) => handleSearch(query, "clients")} />
               </div>
-              {loading ? <p>Loading...</p> : <DataGrid columns={columnsClients} rows={filteredClients} onRowsChange={setClients} />}
+              {loading ? <p>Loading...</p> : <DataGrid columns={columnsClients} rows={filteredClients} onRowsChange={(rows) => { setClients(rows); setFilteredClients(rows); }} errorCells={errorCells} />}
             </CardContent>
           </Card>
           <Card>
@@ -276,7 +337,7 @@ export default function Home() {
                 <FileUploader onFileUpload={(file) => handleFileUpload(file, "workers")} />
                 <SearchBar onSearch={(query) => handleSearch(query, "workers")} />
               </div>
-              {loading ? <p>Loading...</p> : <DataGrid columns={columnsWorkers} rows={filteredWorkers} onRowsChange={setWorkers} />}
+              {loading ? <p>Loading...</p> : <DataGrid columns={columnsWorkers} rows={filteredWorkers} onRowsChange={(rows) => { setWorkers(rows); setFilteredWorkers(rows); }} errorCells={errorCells} />}
             </CardContent>
           </Card>
           <Card>
@@ -288,7 +349,7 @@ export default function Home() {
                 <FileUploader onFileUpload={(file) => handleFileUpload(file, "tasks")} />
                 <SearchBar onSearch={(query) => handleSearch(query, "tasks")} />
               </div>
-              {loading ? <p>Loading...</p> : <DataGrid columns={columnsTasks} rows={filteredTasks} onRowsChange={setTasks} />}
+              {loading ? <p>Loading...</p> : <DataGrid columns={columnsTasks} rows={filteredTasks} onRowsChange={(rows) => { setTasks(rows); setFilteredTasks(rows); }} errorCells={errorCells} />}
             </CardContent>
           </Card>
         </div>
@@ -352,13 +413,23 @@ export default function Home() {
               <div className="space-y-4">
                 <RuleEditor onRuleAdd={handleRuleAdd} />
                 <NaturalLanguageRuler onRuleAdd={handleRuleAdd} />
-                <pre className="mt-4">{JSON.stringify(rules, null, 2)}</pre>
+                {rules.map((rule, i) => (
+                  <div key={i} className="flex items-center justify-between">
+                    <pre className="mt-4">{JSON.stringify(rule, null, 2)}</pre>
+                    <Button onClick={() => handleRuleRemove(i)} variant="destructive">
+                      Remove
+                    </Button>
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>
           <Card className="overflow-hidden">
             <CardHeader>
               <CardTitle>Prioritization</CardTitle>
+              <CardDescription>
+                Set the relative importance of different criteria for the downstream resource allocator.
+              </CardDescription>
             </CardHeader>
             <CardContent className="max-h-80 overflow-y-auto">
               <PrioritizationEditor onWeightsChange={handleWeightsChange} />

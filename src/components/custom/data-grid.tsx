@@ -7,10 +7,10 @@ interface DataGridProps<T> {
   columns: Column<T>[];
   rows: T[];
   onRowsChange?: (rows: T[]) => void;
-  errorCells?: { row: number; col: number }[];
+  errorCells?: { row: number; col: string }[];
 }
 
-export function DataGrid<T>({
+export function DataGrid<T extends { [key: string]: any }>({
   columns,
   rows,
   onRowsChange,
@@ -24,20 +24,23 @@ export function DataGrid<T>({
     );
   }
 
-  const cellClass = (row: number, col: number) => {
-    if (errorCells?.some((cell) => cell.row === row && cell.col === col)) {
-      return "bg-red-200";
-    }
-    return "";
-  };
+  const columnsWithHighlighting = columns.map((col) => ({
+    ...col,
+    cellClass: (row: T) => {
+      const rowIndex = rows.indexOf(row);
+      if (errorCells?.some((cell) => cell.row === rowIndex && cell.col === col.key)) {
+        return "bg-red-200";
+      }
+      return "";
+    },
+  }));
 
   return (
     <ReactDataGrid
-      columns={columns}
+      columns={columnsWithHighlighting}
       rows={rows}
       onRowsChange={onRowsChange}
       className="rdg-light"
-      cellClass={cellClass}
     />
   );
 }

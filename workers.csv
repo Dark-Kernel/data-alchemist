@@ -1,0 +1,5 @@
+WorkerID,WorkerName,Skills,AvailableSlots,MaxLoadPerPhase,WorkerGroup,QualificationLevel
+W001,Alice,Welding,"[1,2,3]",2,GroupA,5
+W002,Bob,Plumbing,"[1,2]",3,GroupA,4
+W003,Charlie,Welding,"[3,4,5]",2,GroupB,5
+W001,David Duplicate,Electrical,"[1,2,3,4]",3,GroupB,3
