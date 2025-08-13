@@ -14,6 +14,13 @@ import {
   validateOutOfRange,
   validateMalformedLists,
   validateBrokenJson,
+  validateUnknownReferences,
+  validateSkillCoverage,
+  validateOverloadedWorkers,
+  validateCircularCoRunGroups,
+  validatePhaseSlotSaturation,
+  validateMaxConcurrencyFeasibility,
+  validateConflictingRules,
 } from "@/lib/validators";
 import { SearchBar } from "@/components/custom/search-bar";
 import { RuleEditor } from "@/components/custom/rule-editor";
@@ -60,6 +67,7 @@ export default function Home() {
   const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
   const [aiErrors, setAiErrors] = useState<(string | AiError)[]>([]);
+  const [errorCells, setErrorCells] = useState<{ row: number; col: string }[]>([]);
   const [rules, setRules] = useState<Rule[]>([]);
   const [weights, setWeights] = useState<Weight | {}>({});
   const [loading, setLoading] = useState(false);
@@ -172,27 +180,72 @@ export default function Home() {
     setLoading(false);
   };
 
+  const handleAiFix = async () => {
+    setLoading(true);
+    const response = await fetch("/api/ai", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "fix_errors", payload: { errors, clients, workers, tasks } }),
+    }).then(res => res.json());
+    setClients(response.clients);
+    setFilteredClients(response.clients);
+    setWorkers(response.workers);
+    setFilteredWorkers(response.workers);
+    setTasks(response.tasks);
+    setFilteredTasks(response.tasks);
+    setLoading(false);
+  };
+
+  const parseErrors = (
+    errors: string[],
+    clients: Client[],
+    workers: Worker[],
+    tasks: Task[]
+  ) => {
+    const cells: { row: number; col: string }[] = [];
+    errors.forEach(error => {
+      // Implement parsing logic here to extract row index and column key
+    });
+    return cells;
+  };
+
   useEffect(() => {
     const allErrors: string[] = [];
-    if(clients.length > 0) {
+    if (Array.isArray(clients) && clients.length > 0) {
       allErrors.push(...validateMissingColumns(clients, columnsClients.map(c => c.key)));
       allErrors.push(...validateDuplicateIds(clients, "ClientID"));
       allErrors.push(...validateOutOfRange(clients, "PriorityLevel", 1, 5));
       allErrors.push(...validateBrokenJson(clients, "AttributesJSON"));
+      if (Array.isArray(tasks) && tasks.length > 0) {
+        allErrors.push(...validateUnknownReferences(clients, tasks));
+      }
     }
-    if(workers.length > 0) {
+    if (Array.isArray(workers) && workers.length > 0) {
       allErrors.push(...validateMissingColumns(workers, columnsWorkers.map(c => c.key)));
       allErrors.push(...validateDuplicateIds(workers, "WorkerID"));
       allErrors.push(...validateMalformedLists(workers, "AvailableSlots"));
+      allErrors.push(...validateOverloadedWorkers(workers));
     }
-    if(tasks.length > 0) {
+    if (Array.isArray(tasks) && tasks.length > 0) {
       allErrors.push(...validateMissingColumns(tasks, columnsTasks.map(c => c.key)));
       allErrors.push(...validateDuplicateIds(tasks, "TaskID"));
       allErrors.push(...validateOutOfRange(tasks, "Duration", 1, Infinity));
+      if (Array.isArray(workers) && workers.length > 0) {
+        allErrors.push(...validateSkillCoverage(tasks, workers));
+        allErrors.push(...validatePhaseSlotSaturation(tasks, workers));
+        allErrors.push(...validateMaxConcurrencyFeasibility(tasks, workers));
+      }
+    }
+    if (Array.isArray(rules) && rules.length > 0) {
+      allErrors.push(...validateCircularCoRunGroups(rules));
+      if (Array.isArray(tasks) && tasks.length > 0) {
+        allErrors.push(...validateConflictingRules(rules, tasks));
+      }
     }
 
     setErrors(allErrors);
-  }, [clients, workers, tasks]);
+    setErrorCells(parseErrors(allErrors, clients, workers, tasks));
+  }, [clients, workers, tasks, rules]);
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -285,6 +338,9 @@ export default function Home() {
             <div className="p-4 border-t">
               <Button onClick={handleAiValidation} className="w-full" disabled={loading}>
                 {loading ? "Analyzing..." : "Run AI Validation"}
+              </Button>
+              <Button onClick={handleAiFix} className="w-full mt-2" disabled={loading}>
+                {loading ? "Fixing..." : "Fix with AI"}
               </Button>
             </div>
           </Card>

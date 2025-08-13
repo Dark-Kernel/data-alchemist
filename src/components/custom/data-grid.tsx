@@ -7,9 +7,15 @@ interface DataGridProps<T> {
   columns: Column<T>[];
   rows: T[];
   onRowsChange?: (rows: T[]) => void;
+  errorCells?: { row: number; col: number }[];
 }
 
-export function DataGrid<T>({ columns, rows, onRowsChange }: DataGridProps<T>) {
+export function DataGrid<T>({
+  columns,
+  rows,
+  onRowsChange,
+  errorCells,
+}: DataGridProps<T>) {
   if (rows.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -18,12 +24,20 @@ export function DataGrid<T>({ columns, rows, onRowsChange }: DataGridProps<T>) {
     );
   }
 
+  const cellClass = (row: number, col: number) => {
+    if (errorCells?.some((cell) => cell.row === row && cell.col === col)) {
+      return "bg-red-200";
+    }
+    return "";
+  };
+
   return (
     <ReactDataGrid
       columns={columns}
       rows={rows}
       onRowsChange={onRowsChange}
       className="rdg-light"
+      cellClass={cellClass}
     />
   );
 }

@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
   const { action, payload } = await req.json();
 
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
     switch (action) {
       case "search": {
@@ -41,6 +41,21 @@ export async function POST(req: NextRequest) {
         const prompt = `Analyze the following ${entityType} data for complex validation errors beyond simple checks. Look for logical inconsistencies, conflicting information, or potential issues. Return a JSON array of error messages. Data: ${JSON.stringify(
           data
         )}`;
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const responseText = cleanJson(response.text());
+        return NextResponse.json(JSON.parse(responseText));
+      }
+
+      case "fix_errors": {
+        const { errors, clients, workers, tasks } = payload;
+        const prompt = `Given the following validation errors and data, please fix the data. Errors: ${JSON.stringify(
+          errors
+        )}. Data: ${JSON.stringify({
+          clients,
+          workers,
+          tasks,
+        })}. Return a single valid JSON object with the fixed data.`;
         const result = await model.generateContent(prompt);
         const response = await result.response;
         const responseText = cleanJson(response.text());
