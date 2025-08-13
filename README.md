@@ -4,7 +4,7 @@ Data Alchemist is a Next.js web application designed to help users clean and pre
 
 
 
-https://github.com/user-attachments/assets/2d71f4ab-bb12-46f2-bfca-951cf843ee61
+https://github.com/user-attachments/assets/a96329d1-9d13-4f0e-8adf-49c5d666cad2
 
 
 
