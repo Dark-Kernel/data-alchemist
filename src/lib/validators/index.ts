@@ -80,10 +80,12 @@ export const validateUnknownReferences = (
   const errors: string[] = [];
   const taskIds = new Set(tasks.map((t) => t.TaskID));
   for (const client of clients) {
-    const requestedIds = client.RequestedTaskIDs.split(",");
-    for (const id of requestedIds) {
-      if (!taskIds.has(id.trim())) {
-        errors.push(`Client ${client.ClientID} requests unknown task: ${id}`);
+    if (typeof client.RequestedTaskIDs === "string") {
+      const requestedIds = client.RequestedTaskIDs.split(",");
+      for (const id of requestedIds) {
+        if (!taskIds.has(id.trim())) {
+          errors.push(`Client ${client.ClientID} requests unknown task: ${id}`);
+        }
       }
     }
   }
@@ -96,13 +98,15 @@ export const validateSkillCoverage = (
 ) => {
   const errors: string[] = [];
   const workerSkills = new Set(
-    workers.flatMap((w) => w.Skills.split(",").map((s: string) => s.trim()))
+    workers.flatMap((w) => (typeof w.Skills === "string" ? w.Skills.split(",").map((s: string) => s.trim()) : []))
   );
   for (const task of tasks) {
-    const requiredSkills = task.RequiredSkills.split(",");
-    for (const skill of requiredSkills) {
-      if (!workerSkills.has(skill.trim())) {
-        errors.push(`Task ${task.TaskID} requires unknown skill: ${skill}`);
+    if (typeof task.RequiredSkills === "string") {
+      const requiredSkills = task.RequiredSkills.split(",");
+      for (const skill of requiredSkills) {
+        if (!workerSkills.has(skill.trim())) {
+          errors.push(`Task ${task.TaskID} requires unknown skill: ${skill}`);
+        }
       }
     }
   }
@@ -112,7 +116,7 @@ export const validateSkillCoverage = (
 export const validateOverloadedWorkers = (workers: Record<string, any>[]) => {
   const errors: string[] = [];
   for (const worker of workers) {
-    if (worker.AvailableSlots.length < worker.MaxLoadPerPhase) {
+    if (worker.AvailableSlots && worker.AvailableSlots.length < worker.MaxLoadPerPhase) {
       errors.push(`Worker ${worker.WorkerID} is overloaded.`);
     }
   }
@@ -173,15 +177,19 @@ export const validatePhaseSlotSaturation = (
   const errors: string[] = [];
   const phaseSlots: Record<number, number> = {};
   for (const worker of workers) {
-    for (const slot of worker.AvailableSlots) {
-      phaseSlots[slot] = (phaseSlots[slot] || 0) + 1;
+    if (Array.isArray(worker.AvailableSlots)) {
+      for (const slot of worker.AvailableSlots) {
+        phaseSlots[slot] = (phaseSlots[slot] || 0) + 1;
+      }
     }
   }
   const phaseDurations: Record<number, number> = {};
   for (const task of tasks) {
-    const phases = task.PreferredPhases.split(",").map((p: string) => parseInt(p.trim()));
-    for (const phase of phases) {
-      phaseDurations[phase] = (phaseDurations[phase] || 0) + task.Duration;
+    if (typeof task.PreferredPhases === "string") {
+      const phases = task.PreferredPhases.split(",").map((p: string) => parseInt(p.trim()));
+      for (const phase of phases) {
+        phaseDurations[phase] = (phaseDurations[phase] || 0) + task.Duration;
+      }
     }
   }
   for (const phase in phaseDurations) {
@@ -199,9 +207,12 @@ export const validateMaxConcurrencyFeasibility = (
   const errors: string[] = [];
   for (const task of tasks) {
     const qualifiedWorkers = workers.filter((w) => {
-      const workerSkills = new Set(w.Skills.split(",").map((s: string) => s.trim()));
-      const requiredSkills = new Set(task.RequiredSkills.split(",").map((s: string) => s.trim()));
-      return [...requiredSkills].every((skill) => workerSkills.has(skill));
+      if (typeof w.Skills === "string" && typeof task.RequiredSkills === "string") {
+        const workerSkills = new Set(w.Skills.split(",").map((s: string) => s.trim()));
+        const requiredSkills = new Set(task.RequiredSkills.split(",").map((s: string) => s.trim()));
+        return [...requiredSkills].every((skill) => workerSkills.has(skill));
+      }
+      return false;
     });
     if (task.MaxConcurrent > qualifiedWorkers.length) {
       errors.push(
