@@ -257,6 +257,7 @@ export const validateConflictingRules = (
   tasks: Record<string, any>[]
 ) => {
   const errors: string[] = [];
+  console.log(tasks);
   const taskPhaseWindows = new Map<string, number[]>();
 
   // First, extract phase-window rules
