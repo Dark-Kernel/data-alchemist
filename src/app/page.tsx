@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileUploader } from "@/components/custom/file-uploader";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
 import { DataGrid } from "@/components/custom/data-grid";
@@ -145,9 +145,9 @@ export default function Home() {
     setRules(rules.filter((_, i) => i !== index));
   };
 
-  const handleWeightsChange = (newWeights: Weight) => {
+  const handleWeightsChange = useCallback((newWeights: Weight) => {
     setWeights(newWeights);
-  };
+  }, []);
 
   const handleExport = () => {
     const clientsCsv = Papa.unparse(clients);
@@ -307,6 +307,17 @@ export default function Home() {
     setErrors(allErrors);
     setErrorCells(parseErrors(allErrors, clients, workers, tasks));
   }, [clients, workers, tasks, rules]);
+
+  useEffect(() => {
+    if (weights && "priorityLevel" in weights) {
+      const sortedClients = [...clients].sort((a, b) => {
+        const priorityA = a.PriorityLevel * weights.priorityLevel;
+        const priorityB = b.PriorityLevel * weights.priorityLevel;
+        return priorityB - priorityA;
+      });
+      setFilteredClients(sortedClients);
+    }
+  }, [clients, weights]);
 
   return (
     <div className="flex flex-col min-h-screen">
